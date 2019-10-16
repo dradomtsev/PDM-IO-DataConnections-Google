@@ -66,9 +66,12 @@ namespace Archimatika.IO.Google.Sheets
             List<Revision> lAllrevisions = new List<Revision>();
             RevisionList rlResult = null;
 
-            var Result = GetRevisions(rlResult, service, sFileID, iPageSize, sFields, lAllrevisions);
-            rlResult = Result.Result.Item1;
-            lAllrevisions = Result.Result.Item2;
+            //var Result = GetRevisionsAsync(rlResult, service, sFileID, iPageSize, sFields, lAllrevisions);
+            //rlResult = Result.Result.Item1;
+            //lAllrevisions = Result.Result.Item2;
+            var Result = GetRevisionsSync(rlResult, service, sFileID, iPageSize, sFields, lAllrevisions);
+            rlResult = Result.Item1;
+            lAllrevisions = Result.Item2;
 
             Console.WriteLine("Revisions:\n");
             int iCounter = 0;
@@ -87,7 +90,27 @@ namespace Archimatika.IO.Google.Sheets
 
         }
 
-        static async Task<Tuple<RevisionList, List<Revision>>> GetRevisions(RevisionList rlResult, DriveService service, string sFileID, int iPageSize, string sFields, List<Revision> lAllrevisions)
+        static Tuple<RevisionList, List<Revision>> GetRevisionsSync(RevisionList rlResult, DriveService service, string sFileID, int iPageSize, string sFields, List<Revision> lAllrevisions)
+        {
+            Console.WriteLine("Start fetching revisions...\n");
+            while (true)
+            {
+                if (rlResult != null && string.IsNullOrWhiteSpace(rlResult.NextPageToken))
+                    break;
+                RevisionsResource.ListRequest listRequest = service.Revisions.List(sFileID);
+                listRequest.PageSize = iPageSize;
+                listRequest.Fields = sFields;
+
+                if (rlResult != null)
+                    listRequest.PageToken = rlResult.NextPageToken;
+
+                rlResult = listRequest.Execute();
+                lAllrevisions.AddRange(rlResult.Revisions);
+            }
+            return Tuple.Create(rlResult, lAllrevisions);
+        }
+
+        static async Task<Tuple<RevisionList, List<Revision>>> GetRevisionsAsync(RevisionList rlResult, DriveService service, string sFileID, int iPageSize, string sFields, List<Revision> lAllrevisions)
         {
             Console.WriteLine("Start fetching revisions...\n");
             while (true)
